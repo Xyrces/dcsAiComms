@@ -1,0 +1,35 @@
+# DCS Natural Language ATC - Python Dependencies
+
+# Core AI/ML
+ollama>=0.1.0
+numpy>=1.24.0
+
+# Audio Processing
+sounddevice>=0.4.6
+pydub>=0.25.1
+pyaudio>=0.2.13
+scipy>=1.10.0
+
+# Speech Recognition
+faster-whisper>=0.10.0
+
+# NLP
+spacy>=3.7.0
+
+# Networking
+requests>=2.31.0
+websockets>=12.0
+
+# Configuration
+pyyaml>=6.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.11.0
+
+# Development
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
