@@ -320,9 +320,10 @@ class TestDCSConfigurator:
 
         assert result is not None
 
+    @patch('src.dcs_configurator.ExportLuaInjector.validate_injection')
     @patch('src.dcs_configurator.ExportLuaInjector.inject_atc_code')
     @patch('src.dcs_configurator.DCSPathDetector.get_primary_dcs_path')
-    def test_configurator_configure_method(self, mock_get_path, mock_inject):
+    def test_configurator_configure_method(self, mock_get_path, mock_inject, mock_validate):
         """Test DCSConfigurator.configure() performs full configuration"""
         from src.dcs_configurator import DCSConfigurator
 
@@ -332,6 +333,7 @@ class TestDCSConfigurator:
             "scripts_path": Path("/home/user/Saved Games/DCS.openbeta/Scripts")
         }
         mock_inject.return_value = True
+        mock_validate.return_value = True
 
         configurator = DCSConfigurator()
         result = configurator.configure()

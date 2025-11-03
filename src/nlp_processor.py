@@ -336,12 +336,14 @@ Use proper military phraseology."""
         """
         template = self.TEMPLATE_RESPONSES.get(intent, self.TEMPLATE_RESPONSES['unknown'])
 
+        # Build format kwargs, avoiding duplicate callsign
+        format_kwargs = dict(entities)  # Copy entities
+        if 'callsign' not in format_kwargs:
+            format_kwargs['callsign'] = callsign
+
         # Fill in template with entities
         try:
-            response = template.format(
-                callsign=callsign,
-                **entities
-            )
+            response = template.format(**format_kwargs)
         except KeyError:
             # Missing required entity, use simpler response
             response = f"{callsign}, roger"
