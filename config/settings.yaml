@@ -1,0 +1,36 @@
+# DCS Natural Language ATC Configuration
+
+dcs:
+  installation_path: "auto"  # Auto-detect or manual path
+  variant: "openbeta"  # stable, openbeta, or custom
+
+ollama:
+  model: "llama3.2:3b"  # fast, balanced, or quality
+  auto_start: true
+  port: 11434
+  timeout: 30  # seconds to wait for Ollama to start
+
+audio:
+  ptt_key: "RCtrl+RShift"
+  input_device: "default"
+  output_device: "default"
+  sample_rate: 22050
+
+stt:
+  engine: "whisper"  # whisper (local) or fireworks (cloud)
+  model: "base"  # tiny, base, small, medium
+
+tts:
+  engine: "piper"  # piper or coqui
+  voice: "en_US-amy-medium"
+  radio_effects: true
+  cache_dir: "cache/tts"
+
+atc:
+  phraseology: "military"  # military or civilian
+  strictness: "relaxed"  # strict or relaxed
+  response_delay: 0.5  # Realistic ATC delay in seconds
+
+network:
+  export_port: 10308  # UDP port for Export.lua data
+  command_port: 10309  # UDP port for commands to DCS

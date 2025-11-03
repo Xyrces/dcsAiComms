@@ -1,0 +1,80 @@
+# ATC Phraseology Templates
+# Standard US military radio communication phrases
+
+startup:
+  - "{callsign}, cleared for startup, altimeter {altimeter}"
+  - "{callsign}, startup approved"
+  - "{callsign}, start at your discretion"
+
+taxi:
+  - "{callsign}, taxi to runway {runway} via {taxiway}"
+  - "{callsign}, hold short of runway {runway}"
+  - "{callsign}, cross runway {runway}, continue taxi"
+  - "{callsign}, taxi to parking spot {spot}"
+
+takeoff:
+  - "{callsign}, wind {wind}, cleared for takeoff runway {runway}"
+  - "{callsign}, runway {runway}, cleared for immediate takeoff"
+  - "{callsign}, line up and wait runway {runway}"
+  - "{callsign}, hold for traffic"
+
+departure:
+  - "{callsign}, contact departure on {frequency}"
+  - "{callsign}, fly runway heading, maintain {altitude}"
+  - "{callsign}, turn left heading {heading}, climb and maintain {altitude}"
+
+enroute:
+  - "{callsign}, climb and maintain {altitude}"
+  - "{callsign}, descend and maintain {altitude}"
+  - "{callsign}, turn {direction} heading {heading}"
+  - "{callsign}, reduce speed to {speed} knots"
+  - "{callsign}, contact {facility} on {frequency}"
+
+approach:
+  - "{callsign}, descend and maintain {altitude}"
+  - "{callsign}, turn {direction} heading {heading}"
+  - "{callsign}, expect vectors for ILS runway {runway}"
+  - "{callsign}, cleared ILS runway {runway} approach"
+  - "{callsign}, contact tower on {frequency}"
+
+landing:
+  - "{callsign}, cleared to land runway {runway}, wind {wind}"
+  - "{callsign}, make short approach runway {runway}"
+  - "{callsign}, go around, I say again go around"
+  - "{callsign}, cleared touch and go runway {runway}"
+
+ground_after_landing:
+  - "{callsign}, contact ground on {frequency}"
+  - "{callsign}, taxi to parking via {taxiway}"
+  - "{callsign}, hold position"
+
+general:
+  - "{callsign}, roger"
+  - "{callsign}, wilco"
+  - "{callsign}, standby"
+  - "{callsign}, say again"
+  - "{callsign}, unable"
+  - "{callsign}, negative"
+  - "{callsign}, affirmative"
+
+emergency:
+  - "{callsign}, roger, squawk emergency"
+  - "{callsign}, all traffic hold position"
+  - "{callsign}, cleared for emergency landing any runway"
+  - "{callsign}, emergency equipment standing by"
+
+# Brevity codes (ATP 1-02.1)
+brevity:
+  tally: "Visual contact with target"
+  visual: "Visual contact with friendly"
+  no_joy: "No visual contact"
+  bandit: "Identified enemy aircraft"
+  bogey: "Unidentified contact"
+  winchester: "Out of ordnance"
+  bingo: "Minimum fuel to RTB"
+  fox_one: "Semi-active radar missile fired"
+  fox_two: "Infrared missile fired"
+  fox_three: "Active radar missile fired"
+  rifle: "Air-to-surface missile fired"
+  shack: "Direct hit"
+  defending: "Maneuvering defensively"
