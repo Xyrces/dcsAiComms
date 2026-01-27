@@ -15,6 +15,12 @@ import numpy as np
 # Setup logging
 logger = logging.getLogger(__name__)
 
+# Scipy support for resampling
+try:
+    from scipy import signal
+except ImportError:
+    signal = None
+
 # Import WhisperModel at module level for proper mocking
 try:
     from faster_whisper import WhisperModel
@@ -293,7 +299,9 @@ class STTEngine:
             Resampled audio data
         """
         try:
-            from scipy import signal
+            if signal is None:
+                logger.warning("scipy not available for resampling, returning original")
+                return audio_data
 
             # Calculate resampling ratio
             num_samples = int(len(audio_data) * target_rate / source_rate)
@@ -302,9 +310,6 @@ class STTEngine:
             resampled = signal.resample(audio_data, num_samples)
             return resampled.astype(np.float32)
 
-        except ImportError:
-            logger.warning("scipy not available for resampling, returning original")
-            return audio_data
         except Exception as e:
             logger.error(f"Resampling failed: {e}")
             return audio_data
