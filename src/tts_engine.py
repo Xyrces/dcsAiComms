@@ -74,6 +74,26 @@ class TTSEngine:
         # Cache storage
         self.response_cache = {}
 
+        # Pre-calculate bandpass filter coefficients
+        self.bandpass_sos = None
+        if signal is not None:
+            try:
+                low_freq = 300
+                high_freq = 3400
+                nyquist = self.sample_rate / 2
+
+                # Ensure frequencies are within Nyquist limit
+                high_freq = min(high_freq, nyquist * 0.95)
+
+                self.bandpass_sos = signal.butter(
+                    4,  # Filter order
+                    [low_freq / nyquist, high_freq / nyquist],
+                    btype='bandpass',
+                    output='sos'
+                )
+            except Exception as e:
+                logger.error(f"Failed to pre-calculate bandpass filter: {e}")
+
         logger.info(f"TTS Engine initialized with engine={self.engine_type}, voice={self.voice_model}")
 
     def synthesize(self, text: str) -> np.ndarray:
@@ -222,20 +242,24 @@ class TTSEngine:
             return audio_data
 
         try:
-            # Design Butterworth bandpass filter
-            low_freq = 300
-            high_freq = 3400
-            nyquist = sample_rate / 2
+            # Use pre-calculated coefficients if sample rate matches
+            if self.bandpass_sos is not None and sample_rate == self.sample_rate:
+                sos = self.bandpass_sos
+            else:
+                # Design Butterworth bandpass filter
+                low_freq = 300
+                high_freq = 3400
+                nyquist = sample_rate / 2
 
-            # Ensure frequencies are within Nyquist limit
-            high_freq = min(high_freq, nyquist * 0.95)
+                # Ensure frequencies are within Nyquist limit
+                high_freq = min(high_freq, nyquist * 0.95)
 
-            sos = signal.butter(
-                4,  # Filter order
-                [low_freq / nyquist, high_freq / nyquist],
-                btype='bandpass',
-                output='sos'
-            )
+                sos = signal.butter(
+                    4,  # Filter order
+                    [low_freq / nyquist, high_freq / nyquist],
+                    btype='bandpass',
+                    output='sos'
+                )
 
             # Apply filter
             filtered = signal.sosfilt(sos, audio_data)
