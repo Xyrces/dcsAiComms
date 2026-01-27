@@ -44,6 +44,11 @@ class TTSEngine:
     - Graceful error handling
     """
 
+    # Radio effect constants
+    BANDPASS_LOW_FREQ = 300
+    BANDPASS_HIGH_FREQ = 3400
+    BANDPASS_ORDER = 4
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize TTS Engine
@@ -78,16 +83,14 @@ class TTSEngine:
         self.bandpass_sos = None
         if signal is not None:
             try:
-                low_freq = 300
-                high_freq = 3400
                 nyquist = self.sample_rate / 2
 
                 # Ensure frequencies are within Nyquist limit
-                high_freq = min(high_freq, nyquist * 0.95)
+                high_freq = min(self.BANDPASS_HIGH_FREQ, nyquist * 0.95)
 
                 self.bandpass_sos = signal.butter(
-                    4,  # Filter order
-                    [low_freq / nyquist, high_freq / nyquist],
+                    self.BANDPASS_ORDER,
+                    [self.BANDPASS_LOW_FREQ / nyquist, high_freq / nyquist],
                     btype='bandpass',
                     output='sos'
                 )
@@ -247,16 +250,14 @@ class TTSEngine:
                 sos = self.bandpass_sos
             else:
                 # Design Butterworth bandpass filter
-                low_freq = 300
-                high_freq = 3400
                 nyquist = sample_rate / 2
 
                 # Ensure frequencies are within Nyquist limit
-                high_freq = min(high_freq, nyquist * 0.95)
+                high_freq = min(self.BANDPASS_HIGH_FREQ, nyquist * 0.95)
 
                 sos = signal.butter(
-                    4,  # Filter order
-                    [low_freq / nyquist, high_freq / nyquist],
+                    self.BANDPASS_ORDER,
+                    [self.BANDPASS_LOW_FREQ / nyquist, high_freq / nyquist],
                     btype='bandpass',
                     output='sos'
                 )
