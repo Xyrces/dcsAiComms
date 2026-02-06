@@ -41,6 +41,7 @@ class QueueEntry:
     """Entry in an ATC queue"""
     callsign: str
     priority: bool = False
+    removed: bool = False
 
 
 class ATCController:
@@ -61,6 +62,7 @@ class ATCController:
         self.nlp_processor = nlp_processor
         self.aircraft_phases: Dict[str, FlightPhase] = {}
         self.queues: Dict[str, deque] = defaultdict(deque)  # Queue type -> deque of entries
+        self.removed_counts: Dict[str, int] = defaultdict(int)  # Track removed items per queue
         self.context: Dict[str, Dict] = {}  # Aircraft context/history
 
         logger.info("ATC Controller initialized")
@@ -291,10 +293,29 @@ class ATCController:
             queue_type: Type of queue
         """
         queue = self.queues[queue_type]
-        self.queues[queue_type] = deque(
-            [entry for entry in queue if entry.callsign != callsign]
-        )
+        for entry in queue:
+            if entry.callsign == callsign:
+                if not entry.removed:
+                    entry.removed = True
+                    self.removed_counts[queue_type] += 1
+
         logger.info(f"Removed {callsign} from {queue_type} queue")
+
+        # Periodic cleanup if too many items are removed (> 25% waste)
+        if len(queue) > 10 and self.removed_counts[queue_type] > len(queue) * 0.25:
+            self._compact_queue(queue_type)
+
+    def _compact_queue(self, queue_type: str):
+        """
+        Rebuild queue to permanently remove marked entries.
+
+        Args:
+            queue_type: Type of queue to compact
+        """
+        queue = self.queues[queue_type]
+        self.queues[queue_type] = deque([e for e in queue if not e.removed])
+        self.removed_counts[queue_type] = 0
+        logger.info(f"Compacted {queue_type} queue")
 
     def is_in_queue(self, callsign: str, queue_type: str) -> bool:
         """
@@ -308,7 +329,7 @@ class ATCController:
             True if in queue, False otherwise
         """
         queue = self.queues[queue_type]
-        return any(entry.callsign == callsign for entry in queue)
+        return any(entry.callsign == callsign and not entry.removed for entry in queue)
 
     def get_queue_position(self, callsign: str, queue_type: str) -> Optional[int]:
         """
@@ -322,9 +343,13 @@ class ATCController:
             Position in queue or None if not in queue
         """
         queue = self.queues[queue_type]
-        for i, entry in enumerate(queue):
+        pos = 0
+        for entry in queue:
+            if entry.removed:
+                continue
             if entry.callsign == callsign:
-                return i
+                return pos
+            pos += 1
         return None
 
     def get_next_in_queue(self, queue_type: str) -> Optional[str]:
@@ -338,6 +363,12 @@ class ATCController:
             Callsign of next aircraft or None if queue empty
         """
         queue = self.queues[queue_type]
+
+        # Lazy cleanup of removed entries at the front
+        while queue and queue[0].removed:
+            queue.popleft()
+            self.removed_counts[queue_type] -= 1
+
         if queue:
             return queue[0].callsign
         return None
@@ -351,6 +382,7 @@ class ATCController:
         """
         count = len(self.queues[queue_type])
         self.queues[queue_type].clear()
+        self.removed_counts[queue_type] = 0
         logger.info(f"Cleared {queue_type} queue ({count} aircraft)")
 
 
