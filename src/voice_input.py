@@ -15,6 +15,7 @@ import logging
 import numpy as np
 from typing import Optional, Dict, List, Any
 import threading
+from collections import deque
 
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,8 @@ class VoiceInputHandler:
 
         # State
         self.is_recording = False
-        self._buffer = np.array([], dtype=np.float32)
+        self._buffer = deque()
+        self._buffer_sample_count = 0
         self._lock = threading.Lock()
         self._stream = None
         self.device_index = None
@@ -180,15 +182,38 @@ class VoiceInputHandler:
             # Convert to 1D array if needed
             audio_data = indata.flatten() if indata.ndim > 1 else indata
 
+            # Ensure we have a copy of the data, as the input buffer is reused
+            # flatten() returns a copy, but if ndim=1 we used indata directly
+            if indata.ndim == 1:
+                audio_data = audio_data.copy()
+
             with self._lock:
                 # Append to buffer
-                self._buffer = np.concatenate([self._buffer, audio_data])
+                self._buffer.append(audio_data)
+                self._buffer_sample_count += len(audio_data)
 
                 # Limit buffer size
-                max_samples = self.sample_rate * self.max_buffer_seconds
-                if len(self._buffer) > max_samples:
+                max_samples = int(self.sample_rate * self.max_buffer_seconds)
+                while self._buffer_sample_count > max_samples:
                     # Keep only most recent data
-                    self._buffer = self._buffer[-max_samples:]
+                    if not self._buffer:
+                        break
+
+                    # Check if removing the oldest chunk will keep us under/at limit
+                    # or if we need to slice it
+                    oldest_chunk = self._buffer[0]
+                    chunk_len = len(oldest_chunk)
+                    excess = int(self._buffer_sample_count - max_samples)
+
+                    if chunk_len <= excess:
+                        # Remove entire chunk
+                        self._buffer.popleft()
+                        self._buffer_sample_count -= chunk_len
+                    else:
+                        # Slice the oldest chunk
+                        self._buffer[0] = oldest_chunk[excess:]
+                        self._buffer_sample_count -= excess
+                        # Now we are exactly at max_samples
 
         except Exception as e:
             logger.error(f"Error in audio callback: {e}")
@@ -201,14 +226,15 @@ class VoiceInputHandler:
             numpy array of audio samples or None
         """
         with self._lock:
-            if len(self._buffer) > 0:
-                return self._buffer.copy()
+            if self._buffer:
+                return np.concatenate(self._buffer)
             return None
 
     def clear_buffer(self):
         """Clear audio buffer."""
         with self._lock:
-            self._buffer = np.array([], dtype=np.float32)
+            self._buffer = deque()
+            self._buffer_sample_count = 0
             logger.debug("Audio buffer cleared")
 
     def is_ptt_pressed(self) -> bool:

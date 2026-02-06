@@ -8,6 +8,7 @@ import pytest
 import numpy as np
 from unittest.mock import Mock, patch, MagicMock, call
 import sys
+from collections import deque
 
 # Mock audio libraries before importing
 sys.modules['sounddevice'] = MagicMock()
@@ -81,7 +82,8 @@ class TestVoiceInputHandler:
 
         # Simulate some audio data
         test_audio = np.zeros(1000, dtype=np.float32)
-        handler._buffer = test_audio
+        handler._buffer = deque([test_audio])
+        handler._buffer_sample_count = 1000
 
         audio_data = handler.get_audio_data()
 
@@ -94,11 +96,13 @@ class TestVoiceInputHandler:
         from src.voice_input import VoiceInputHandler
 
         handler = VoiceInputHandler()
-        handler._buffer = np.zeros(1000, dtype=np.float32)
+        handler._buffer = deque([np.zeros(1000, dtype=np.float32)])
+        handler._buffer_sample_count = 1000
 
         handler.clear_buffer()
 
         assert len(handler._buffer) == 0 or handler._buffer is None
+        assert handler._buffer_sample_count == 0
 
 
 class TestPTTDetection:
