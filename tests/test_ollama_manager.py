@@ -7,6 +7,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 import subprocess
 import time
+import src.ollama_manager
 
 
 class TestOllamaManager:
@@ -40,7 +41,8 @@ class TestOllamaManager:
         mock_get.return_value = mock_response
 
         manager = OllamaManager()
-        assert manager.is_running() is True
+        # Use force_refresh=True to test the logic synchronously
+        assert manager.is_running(force_refresh=True) is True
         mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=2)
 
     @patch('requests.get')
@@ -51,7 +53,8 @@ class TestOllamaManager:
         mock_get.side_effect = Exception("Connection refused")
 
         manager = OllamaManager()
-        assert manager.is_running() is False
+        # Use force_refresh=True to test the logic synchronously
+        assert manager.is_running(force_refresh=True) is False
 
     @patch('requests.get')
     def test_is_running_returns_false_on_non_200_status(self, mock_get):
@@ -63,7 +66,41 @@ class TestOllamaManager:
         mock_get.return_value = mock_response
 
         manager = OllamaManager()
+        # Use force_refresh=True to test the logic synchronously
+        assert manager.is_running(force_refresh=True) is False
+
+    @patch('requests.get')
+    def test_is_running_async_caching(self, mock_get):
+        """Test is_running() async caching behavior"""
+        from src.ollama_manager import OllamaManager
+
+        # Make the request take some time to ensure we can observe the "pending" state
+        def delayed_response(*args, **kwargs):
+            time.sleep(0.2)
+            response = Mock()
+            response.status_code = 200
+            return response
+
+        mock_get.side_effect = delayed_response
+
+        manager = OllamaManager()
+
+        # Initial call - should trigger background check but return cached False
+        # Because the background thread sleeps, the cache won't be updated yet
         assert manager.is_running() is False
+
+        # Wait for background thread to complete
+        time.sleep(0.3)
+
+        # Check was triggered
+        mock_get.assert_called_once()
+
+        # Second call - should return updated True
+        assert manager.is_running() is True
+
+        # Should not trigger another check (cached)
+        manager.is_running()
+        mock_get.assert_called_once()
 
     @patch('subprocess.Popen')
     @patch('src.ollama_manager.OllamaManager.is_running')
