@@ -6,6 +6,7 @@ Handles auto-launch, health checking, and model management for Ollama LLM
 import subprocess
 import time
 import requests
+import concurrent.futures
 from typing import Optional
 import logging
 
@@ -39,21 +40,53 @@ class OllamaManager:
         self.process: Optional[subprocess.Popen] = None
         self.base_url = f"http://localhost:{self.ollama_port}"
 
+        # Performance optimization: Cache status to avoid blocking HTTP requests
+        self._is_running_cache: bool = False
+        self._last_check_time: float = 0
+        self._check_interval: float = 5.0  # Seconds to cache the result
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self._check_future: Optional[concurrent.futures.Future] = None
+
         logger.info(f"OllamaManager initialized with model={model}, port={port}")
 
-    def is_running(self) -> bool:
+    def _check_server_status(self) -> bool:
         """
-        Check if Ollama server is responding
-
-        Returns:
-            True if server responds with 200 status, False otherwise
+        Perform actual HTTP check for Ollama server status.
+        Updates internal cache.
         """
         try:
             response = requests.get(f"{self.base_url}/api/tags", timeout=2)
-            return response.status_code == 200
+            is_running = response.status_code == 200
         except Exception as e:
             logger.debug(f"Ollama health check failed: {e}")
-            return False
+            is_running = False
+
+        self._is_running_cache = is_running
+        self._last_check_time = time.time()
+        return is_running
+
+    def is_running(self, force_refresh: bool = False) -> bool:
+        """
+        Check if Ollama server is responding.
+        Uses caching to avoid blocking HTTP requests unless force_refresh is True.
+
+        Args:
+            force_refresh: If True, performs a blocking check and updates cache.
+
+        Returns:
+            True if server is known to be running, False otherwise
+        """
+        if force_refresh:
+            return self._check_server_status()
+
+        # Check if cache is expired
+        time_since_check = time.time() - self._last_check_time
+        if time_since_check > self._check_interval:
+            # Check if a check is already running
+            if self._check_future is None or self._check_future.done():
+                self._check_future = self._executor.submit(self._check_server_status)
+
+        return self._is_running_cache
 
     def start(self) -> bool:
         """
@@ -63,8 +96,8 @@ class OllamaManager:
             True if Ollama is running (was already running or successfully started)
             False if failed to start within timeout
         """
-        # Check if already running
-        if self.is_running():
+        # Check if already running (force check)
+        if self.is_running(force_refresh=True):
             logger.info("Ollama already running")
             return True
 
@@ -85,7 +118,7 @@ class OllamaManager:
             # Wait for server to be ready (max timeout seconds)
             for i in range(self.timeout):
                 time.sleep(1)
-                if self.is_running():
+                if self.is_running(force_refresh=True):
                     logger.info(f"Ollama server started successfully after {i+1} seconds")
                     return True
 
@@ -131,6 +164,9 @@ class OllamaManager:
         """
         Stop Ollama server if it was started by this manager
         """
+        # Shutdown executor
+        self._executor.shutdown(wait=False)
+
         if self.process:
             try:
                 logger.info("Stopping Ollama server...")
