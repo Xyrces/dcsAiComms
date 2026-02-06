@@ -41,6 +41,7 @@ class QueueEntry:
     """Entry in an ATC queue"""
     callsign: str
     priority: bool = False
+    removed: bool = False
 
 
 class ATCController:
@@ -291,9 +292,9 @@ class ATCController:
             queue_type: Type of queue
         """
         queue = self.queues[queue_type]
-        self.queues[queue_type] = deque(
-            [entry for entry in queue if entry.callsign != callsign]
-        )
+        for entry in queue:
+            if entry.callsign == callsign:
+                entry.removed = True
         logger.info(f"Removed {callsign} from {queue_type} queue")
 
     def is_in_queue(self, callsign: str, queue_type: str) -> bool:
@@ -308,7 +309,7 @@ class ATCController:
             True if in queue, False otherwise
         """
         queue = self.queues[queue_type]
-        return any(entry.callsign == callsign for entry in queue)
+        return any(entry.callsign == callsign and not entry.removed for entry in queue)
 
     def get_queue_position(self, callsign: str, queue_type: str) -> Optional[int]:
         """
@@ -322,9 +323,13 @@ class ATCController:
             Position in queue or None if not in queue
         """
         queue = self.queues[queue_type]
-        for i, entry in enumerate(queue):
+        pos = 0
+        for entry in queue:
+            if entry.removed:
+                continue
             if entry.callsign == callsign:
-                return i
+                return pos
+            pos += 1
         return None
 
     def get_next_in_queue(self, queue_type: str) -> Optional[str]:
@@ -338,6 +343,11 @@ class ATCController:
             Callsign of next aircraft or None if queue empty
         """
         queue = self.queues[queue_type]
+
+        # Lazy cleanup of removed entries at the front
+        while queue and queue[0].removed:
+            queue.popleft()
+
         if queue:
             return queue[0].callsign
         return None
