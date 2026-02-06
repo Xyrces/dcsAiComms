@@ -62,6 +62,7 @@ class ATCController:
         self.nlp_processor = nlp_processor
         self.aircraft_phases: Dict[str, FlightPhase] = {}
         self.queues: Dict[str, deque] = defaultdict(deque)  # Queue type -> deque of entries
+        self.removed_counts: Dict[str, int] = defaultdict(int)  # Track removed items per queue
         self.context: Dict[str, Dict] = {}  # Aircraft context/history
 
         logger.info("ATC Controller initialized")
@@ -294,8 +295,27 @@ class ATCController:
         queue = self.queues[queue_type]
         for entry in queue:
             if entry.callsign == callsign:
-                entry.removed = True
+                if not entry.removed:
+                    entry.removed = True
+                    self.removed_counts[queue_type] += 1
+
         logger.info(f"Removed {callsign} from {queue_type} queue")
+
+        # Periodic cleanup if too many items are removed (> 25% waste)
+        if len(queue) > 10 and self.removed_counts[queue_type] > len(queue) * 0.25:
+            self._compact_queue(queue_type)
+
+    def _compact_queue(self, queue_type: str):
+        """
+        Rebuild queue to permanently remove marked entries.
+
+        Args:
+            queue_type: Type of queue to compact
+        """
+        queue = self.queues[queue_type]
+        self.queues[queue_type] = deque([e for e in queue if not e.removed])
+        self.removed_counts[queue_type] = 0
+        logger.info(f"Compacted {queue_type} queue")
 
     def is_in_queue(self, callsign: str, queue_type: str) -> bool:
         """
@@ -347,6 +367,7 @@ class ATCController:
         # Lazy cleanup of removed entries at the front
         while queue and queue[0].removed:
             queue.popleft()
+            self.removed_counts[queue_type] -= 1
 
         if queue:
             return queue[0].callsign
@@ -361,6 +382,7 @@ class ATCController:
         """
         count = len(self.queues[queue_type])
         self.queues[queue_type].clear()
+        self.removed_counts[queue_type] = 0
         logger.info(f"Cleared {queue_type} queue ({count} aircraft)")
 
 
